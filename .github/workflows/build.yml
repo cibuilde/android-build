@@ -1,0 +1,96 @@
+name: Android Build
+
+on: [ push ]
+
+jobs:
+  download:
+
+    runs-on: ubuntu-22.04
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@main
+
+    - name: Cache repo
+      id: cache-repo
+      uses: actions/cache@v3
+      env:
+        cache-name: cache-aosp-repo
+      with:
+        # npm cache files are stored in `~/.npm` on Linux/macOS
+        path: aosp
+        key: aosp-repo-master
+        restore-keys: |
+          aosp-repo-master
+
+    - run: |
+        export ROOTDIR=$(pwd)
+        curl -LJO https://storage.googleapis.com/git-repo-downloads/repo && chmod +x $ROOTDIR/repo
+        mkdir -p $ROOTDIR/aosp && cd $ROOTDIR/aosp
+        $ROOTDIR/repo init -c --no-tags --partial-clone --clone-filter=tree:0 -u https://android.googlesource.com/platform/manifest
+        mkdir -p $ROOTDIR/aosp/.repo/local_manifests/ && cp $ROOTDIR/local_manifest.xml $ROOTDIR/aosp/.repo/local_manifests/
+        tree --charset=c -L 2 $ROOTDIR/aosp/.repo
+    - name: Clone Clang repo
+      if: steps.cache-repo.outputs.cache-hit != 'true'
+      run: |
+        export ROOTDIR=$(pwd) && cd $ROOTDIR/aosp
+        [ ! -d 'prebuilts/clang/host/linux-x86' ] && git clone --filter=tree:0 --single-branch --no-tags --sparse https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 prebuilts/clang/host/linux-x86 || true
+        pushd prebuilts/clang/host/linux-x86
+        git sparse-checkout init --cone
+        git sparse-checkout add clang-r468909 soong
+    - name: Clone Clang Tools repo
+      #if: steps.cache-repo.outputs.cache-hit != 'true'
+      run: |
+        export ROOTDIR=$(pwd) && cd $ROOTDIR/aosp
+        [ ! -d 'prebuilts/clang-tools' ] && git clone --filter=tree:0 --single-branch --no-tags --sparse https://android.googlesource.com/platform/prebuilts/clang-tools prebuilts/clang-tools || true
+        pushd prebuilts/clang-tools
+        git sparse-checkout init --cone
+        git sparse-checkout add linux-x86
+    - name: Clone Glibc repo
+      run: |
+        export ROOTDIR=$(pwd) && cd $ROOTDIR/aosp
+        [ ! -d 'prebuilts/gcc/linux-x86/host/x86_64-linux-glibc2.17-4.8' ] && git clone --filter=tree:0 --single-branch --no-tags https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/host/x86_64-linux-glibc2.17-4.8 prebuilts/gcc/linux-x86/host/x86_64-linux-glibc2.17-4.8 || true
+        #pushd prebuilts/gcc/linux-x86/host/x86_64-linux-glibc2.17-4.8
+        #git sparse-checkout init --cone
+        #git sparse-checkout add sysroot
+        #popd
+    - run: |
+        export ROOTDIR=$(pwd) && cd $ROOTDIR/aosp
+        $ROOTDIR/repo sync -c --no-tags
+        mkdir -p prebuilts/go && ln -sf $GOROOT_1_19_X64 `pwd`/prebuilts/go/linux-x86
+        ls -l prebuilts/go/linux-x86
+        pushd build/make && git checkout . && patch -Np1 -i $ROOTDIR/build_make.patch && popd
+        pushd build/soong && git checkout . && patch -Np1 -i $ROOTDIR/build_soong.patch && popd
+        pushd build/blueprint && git checkout . && patch -Np1 -i $ROOTDIR/build_blueprint.patch && popd
+    - run: |
+        export ROOTDIR=$(pwd) && cd $ROOTDIR/aosp
+        source build/envsetup.sh
+        lunch aosp_x86_64-eng
+        ALLOW_MISSING_DEPENDENCIES=true SOONG_GEN_CMAKEFILES=1 SOONG_GEN_COMPDB=1 m --skip-soong-tests out/target/product/generic_x86_64/vendor/lib64/dri/i965_dri.so out/target/product/generic_x86_64/vendor/lib64/egl/libGLES_mesa.so
+        #libGLES_mesa-target64 i965_dri-target64
+        #ALLOW_MISSING_DEPENDENCIES=true SOONG_GEN_CMAKEFILES=1 SOONG_GEN_COMPDB=1 m --skip-soong-tests libc.bootstrap-target64
+        ./prebuilts/build-tools/linux-x86/bin/ninja -v -f out/combined-aosp_x86_64.ninja -t commands i965_dri-target64 > i965_dri-target64.sh
+        ./prebuilts/build-tools/linux-x86/bin/ninja -v -f out/combined-aosp_x86_64.ninja -t commands libGLES_mesa-target64 > libGLES_mesa-target64.sh
+
+    - name: Archive output
+      uses: actions/upload-artifact@v3
+      with:
+        name: out
+        path: |
+          aosp/out/development
+          aosp/out/soong/development
+          aosp/out/soong/bootstrap.ninja
+          aosp/out/soong/build.ninja
+          aosp/out/soong/soong.*
+          aosp/out/soong/module_bp_*
+          aosp/out/soong/*.mk
+          aosp/out/.module_paths
+          aosp/out/build-aosp_x86_64-package.ninja
+          aosp/out/build-aosp_x86_64.ninja
+          aosp/out/combined-aosp_x86_64.ninja
+          aosp/out/verbose.log.gz
+          aosp/out/target/product/generic_x86_64/system
+          aosp/out/target/product/generic_x86_64/vendor
+          aosp/i965_dri-target64.sh
+          aosp/libGLES_mesa-target64.sh

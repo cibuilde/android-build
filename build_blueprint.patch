@@ -1,0 +1,19 @@
+diff --git a/context.go b/context.go
+index 5448f1e..3d47a87 100644
+--- a/context.go
++++ b/context.go
+@@ -485,6 +485,14 @@ type ModuleFactory func() (m Module, propertyStructs []interface{})
+ // The factory function may be called from multiple goroutines.  Any accesses
+ // to global variables must be synchronized.
+ func (c *Context) RegisterModuleType(name string, factory ModuleFactory) {
++	if len(strings.Split(name, "test")) > 1 || len(strings.Split(name, "fuzz")) > 1 || len(strings.Split(name, "benchmark")) > 1 ||
++            name == "package" || name == "android_app" || len(strings.Split(name, "license")) > 1 {
++		fmt.Fprintf(os.Stderr, "Skip Module Type %s\n", name)
++		return
++	} else {
++		//fmt.Fprintf(os.Stderr, "Register Module Type %s\n", name)
++	}
++
+ 	if _, present := c.moduleFactories[name]; present {
+ 		panic(errors.New("module type name is already registered"))
+ 	}

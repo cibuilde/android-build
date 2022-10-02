@@ -1,0 +1,12 @@
+diff --git a/cmd/soong_build/main.go b/cmd/soong_build/main.go
+index 0b8cc886..d3cac9a8 100644
+--- a/cmd/soong_build/main.go
++++ b/cmd/soong_build/main.go
+@@ -119,6 +119,7 @@ func newContext(configuration android.Config) *android.Context {
+ 	ctx.Register()
+ 	ctx.SetNameInterface(newNameResolver(configuration))
+ 	ctx.SetAllowMissingDependencies(configuration.AllowMissingDependencies())
++	ctx.SetIgnoreUnknownModuleTypes(true)
+ 	return ctx
+ }
+ 

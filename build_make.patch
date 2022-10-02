@@ -1,0 +1,44 @@
+diff --git a/target/board/BoardConfigMainlineCommon.mk b/target/board/BoardConfigMainlineCommon.mk
+index 00f6e5b0a..deb685d5f 100644
+--- a/target/board/BoardConfigMainlineCommon.mk
++++ b/target/board/BoardConfigMainlineCommon.mk
+@@ -49,3 +49,6 @@ BOARD_PROPERTY_OVERRIDES_SPLIT_ENABLED := true
+ 
+ # Include stats logging code in LMKD
+ TARGET_LMKD_STATS_LOG := true
++
++BOARD_GPU_DRIVERS := i965
++
+diff --git a/target/board/generic_x86_64/device.mk b/target/board/generic_x86_64/device.mk
+index fa1eb67f6..28362d1c6 100755
+--- a/target/board/generic_x86_64/device.mk
++++ b/target/board/generic_x86_64/device.mk
+@@ -13,3 +13,5 @@
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+ #
++
++PRODUCT_SOONG_NAMESPACES += external/mesa3d
+diff --git a/target/product/gsi_release.mk b/target/product/gsi_release.mk
+index 9c480b650..5189b9724 100644
+--- a/target/product/gsi_release.mk
++++ b/target/product/gsi_release.mk
+@@ -63,12 +63,12 @@ PRODUCT_PACKAGES += \
+     init.vndk-nodef.rc \
+ 
+ # Support additional VNDK snapshots
+-PRODUCT_EXTRA_VNDK_VERSIONS := \
+-    29 \
+-    30 \
+-    31 \
+-    32 \
+-    33 \
++#PRODUCT_EXTRA_VNDK_VERSIONS := \
++#    29 \
++#    30 \
++#    31 \
++#    32 \
++#    33 \
+ 
+ # Do not build non-GSI partition images.
+ PRODUCT_BUILD_CACHE_IMAGE := false
